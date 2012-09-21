@@ -26,8 +26,11 @@ import android.view.ViewGroup;
 import android.view.ViewParent;
 import android.widget.AbsListView;
 import android.widget.AbsListView.OnScrollListener;
+import android.widget.Adapter;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
 import android.widget.FrameLayout;
-import android.widget.LinearLayout;
+import android.widget.ListAdapter;
 
 import com.handmark.pulltorefresh.library.internal.EmptyViewMethodAccessor;
 import com.handmark.pulltorefresh.library.internal.IndicatorLayout;
@@ -41,12 +44,12 @@ public abstract class PullToRefreshAdapterViewBase<T extends AbsListView> extend
 	private OnScrollListener mOnScrollListener;
 	private OnLastItemVisibleListener mOnLastItemVisibleListener;
 	private View mEmptyView;
-	private FrameLayout mRefreshableViewHolder;
 
 	private IndicatorLayout mIndicatorIvTop;
 	private IndicatorLayout mIndicatorIvBottom;
 
 	private boolean mShowIndicator;
+	private boolean mScrollEmptyView = true;
 
 	public PullToRefreshAdapterViewBase(Context context) {
 		super(context);
@@ -122,6 +125,39 @@ public abstract class PullToRefreshAdapterViewBase<T extends AbsListView> extend
 		}
 	}
 
+	@Override
+	protected void onScrollChanged(int l, int t, int oldl, int oldt) {
+		super.onScrollChanged(l, t, oldl, oldt);
+		if (null != mEmptyView && !mScrollEmptyView) {
+			mEmptyView.scrollTo(-l, -t);
+		}
+	}
+
+	/**
+	 * Pass-through method for {@link PullToRefreshBase#getRefreshableView()
+	 * getRefreshableView()}.{@link AdapterView#setAdapter(ListAdapter)
+	 * setAdapter(adapter)}. This is just for convenience!
+	 * 
+	 * @param adapter
+	 *            - Adapter to set
+	 */
+	public void setAdapter(ListAdapter adapter) {
+		((AdapterView<ListAdapter>) mRefreshableView).setAdapter(adapter);
+	}
+
+	/**
+	 * Pass-through method for {@link PullToRefreshBase#getRefreshableView()
+	 * getRefreshableView()}.
+	 * {@link AdapterView#setOnItemClickListener(OnItemClickListener)
+	 * setOnItemClickListener(listener)}. This is just for convenience!
+	 * 
+	 * @param listener
+	 *            - OnItemClickListener to use
+	 */
+	public void setOnItemClickListener(OnItemClickListener listener) {
+		mRefreshableView.setOnItemClickListener(listener);
+	}
+
 	/**
 	 * Sets the Empty View to be used by the Adapter View.
 	 * 
@@ -137,9 +173,11 @@ public abstract class PullToRefreshAdapterViewBase<T extends AbsListView> extend
 	 *            - Empty View to be used
 	 */
 	public final void setEmptyView(View newEmptyView) {
+		FrameLayout refreshableViewWrapper = getRefreshableViewWrapper();
+
 		// If we already have an Empty View, remove it
 		if (null != mEmptyView) {
-			mRefreshableViewHolder.removeView(mEmptyView);
+			refreshableViewWrapper.removeView(mEmptyView);
 		}
 
 		if (null != newEmptyView) {
@@ -152,15 +190,20 @@ public abstract class PullToRefreshAdapterViewBase<T extends AbsListView> extend
 				((ViewGroup) newEmptyViewParent).removeView(newEmptyView);
 			}
 
-			mRefreshableViewHolder.addView(newEmptyView, ViewGroup.LayoutParams.FILL_PARENT,
-					ViewGroup.LayoutParams.FILL_PARENT);
+			refreshableViewWrapper.addView(newEmptyView, ViewGroup.LayoutParams.MATCH_PARENT,
+					ViewGroup.LayoutParams.MATCH_PARENT);
 
 			if (mRefreshableView instanceof EmptyViewMethodAccessor) {
 				((EmptyViewMethodAccessor) mRefreshableView).setEmptyViewInternal(newEmptyView);
 			} else {
 				mRefreshableView.setEmptyView(newEmptyView);
 			}
+			mEmptyView = newEmptyView;
 		}
+	}
+
+	public final void setScrollEmptyView(boolean doScroll) {
+		mScrollEmptyView = doScroll;
 	}
 
 	public final void setOnLastItemVisibleListener(OnLastItemVisibleListener listener) {
@@ -190,37 +233,6 @@ public abstract class PullToRefreshAdapterViewBase<T extends AbsListView> extend
 			// If not, then remove then
 			removeIndicatorViews();
 		}
-	}
-
-	protected void addRefreshableView(Context context, T refreshableView) {
-		mRefreshableViewHolder = new FrameLayout(context);
-		mRefreshableViewHolder.addView(refreshableView, ViewGroup.LayoutParams.FILL_PARENT,
-				ViewGroup.LayoutParams.FILL_PARENT);
-		addView(mRefreshableViewHolder, new LinearLayout.LayoutParams(LayoutParams.FILL_PARENT, 0, 1.0f));
-	}
-
-	/**
-	 * Returns the number of Adapter View Footer Views. This will always return
-	 * 0 for non-ListView views.
-	 * 
-	 * @return 0 for non-ListView views, possibly 1 for ListView
-	 */
-	protected int getNumberInternalFooterViews() {
-		return 0;
-	}
-
-	/**
-	 * Returns the number of Adapter View Header Views. This will always return
-	 * 0 for non-ListView views.
-	 * 
-	 * @return 0 for non-ListView views, possibly 1 for ListView
-	 */
-	protected int getNumberInternalHeaderViews() {
-		return 0;
-	}
-
-	protected int getNumberInternalViews() {
-		return getNumberInternalHeaderViews() + getNumberInternalFooterViews();
 	}
 
 	@Override
@@ -293,11 +305,14 @@ public abstract class PullToRefreshAdapterViewBase<T extends AbsListView> extend
 		// Check Indicator Views consistent with new Mode
 		if (getShowIndicatorInternal()) {
 			addIndicatorViews();
+		} else {
+			removeIndicatorViews();
 		}
 	}
 
 	private void addIndicatorViews() {
 		Mode mode = getMode();
+		FrameLayout refreshableViewWrapper = getRefreshableViewWrapper();
 
 		if (mode.canPullDown() && null == mIndicatorIvTop) {
 			// If the mode can pull down, and we don't have one set already
@@ -306,11 +321,11 @@ public abstract class PullToRefreshAdapterViewBase<T extends AbsListView> extend
 					ViewGroup.LayoutParams.WRAP_CONTENT);
 			params.rightMargin = getResources().getDimensionPixelSize(R.dimen.indicator_right_padding);
 			params.gravity = Gravity.TOP | Gravity.RIGHT;
-			mRefreshableViewHolder.addView(mIndicatorIvTop, params);
+			refreshableViewWrapper.addView(mIndicatorIvTop, params);
 
 		} else if (!mode.canPullDown() && null != mIndicatorIvTop) {
 			// If we can't pull down, but have a View then remove it
-			mRefreshableViewHolder.removeView(mIndicatorIvTop);
+			refreshableViewWrapper.removeView(mIndicatorIvTop);
 			mIndicatorIvTop = null;
 		}
 
@@ -321,11 +336,11 @@ public abstract class PullToRefreshAdapterViewBase<T extends AbsListView> extend
 					ViewGroup.LayoutParams.WRAP_CONTENT);
 			params.rightMargin = getResources().getDimensionPixelSize(R.dimen.indicator_right_padding);
 			params.gravity = Gravity.BOTTOM | Gravity.RIGHT;
-			mRefreshableViewHolder.addView(mIndicatorIvBottom, params);
+			refreshableViewWrapper.addView(mIndicatorIvBottom, params);
 
 		} else if (!mode.canPullUp() && null != mIndicatorIvBottom) {
 			// If we can't pull down, but have a View then remove it
-			mRefreshableViewHolder.removeView(mIndicatorIvBottom);
+			refreshableViewWrapper.removeView(mIndicatorIvBottom);
 			mIndicatorIvBottom = null;
 		}
 	}
@@ -335,14 +350,28 @@ public abstract class PullToRefreshAdapterViewBase<T extends AbsListView> extend
 	}
 
 	private boolean isFirstItemVisible() {
-		if (mRefreshableView.getCount() <= getNumberInternalViews()) {
+		final Adapter adapter = mRefreshableView.getAdapter();
+
+		if (null == adapter || adapter.isEmpty()) {
+			if (DEBUG) {
+				Log.d(LOG_TAG, "isFirstItemVisible. Empty View.");
+			}
 			return true;
-		} else if (mRefreshableView.getFirstVisiblePosition() == 0) {
 
-			final View firstVisibleChild = mRefreshableView.getChildAt(0);
+		} else {
 
-			if (firstVisibleChild != null) {
-				return firstVisibleChild.getTop() >= mRefreshableView.getTop();
+			/**
+			 * This check should really just be:
+			 * mRefreshableView.getFirstVisiblePosition() == 0, but PtRListView
+			 * internally use a HeaderView which messes the positions up. For
+			 * now we'll just add one to account for it and rely on the inner
+			 * condition which checks getTop().
+			 */
+			if (mRefreshableView.getFirstVisiblePosition() <= 1) {
+				final View firstVisibleChild = mRefreshableView.getChildAt(0);
+				if (firstVisibleChild != null) {
+					return firstVisibleChild.getTop() >= mRefreshableView.getTop();
+				}
 			}
 		}
 
@@ -350,22 +379,35 @@ public abstract class PullToRefreshAdapterViewBase<T extends AbsListView> extend
 	}
 
 	private boolean isLastItemVisible() {
-		final int count = mRefreshableView.getCount();
-		final int lastVisiblePosition = mRefreshableView.getLastVisiblePosition();
+		final Adapter adapter = mRefreshableView.getAdapter();
 
-		if (DEBUG) {
-			Log.d(LOG_TAG, "isLastItemVisible. Count: " + count + " Last Visible Pos: " + lastVisiblePosition);
-		}
-
-		if (count <= getNumberInternalViews()) {
+		if (null == adapter || adapter.isEmpty()) {
+			if (DEBUG) {
+				Log.d(LOG_TAG, "isLastItemVisible. Empty View.");
+			}
 			return true;
-		} else if (lastVisiblePosition == count - 1) {
+		} else {
+			final int lastItemPosition = mRefreshableView.getCount() - 1;
+			final int lastVisiblePosition = mRefreshableView.getLastVisiblePosition();
 
-			final int childIndex = lastVisiblePosition - mRefreshableView.getFirstVisiblePosition();
-			final View lastVisibleChild = mRefreshableView.getChildAt(childIndex);
+			if (DEBUG) {
+				Log.d(LOG_TAG, "isLastItemVisible. Last Item Position: " + lastItemPosition + " Last Visible Pos: "
+						+ lastVisiblePosition);
+			}
 
-			if (lastVisibleChild != null) {
-				return lastVisibleChild.getBottom() <= mRefreshableView.getBottom();
+			/**
+			 * This check should really just be: lastVisiblePosition ==
+			 * lastItemPosition, but PtRListView internally uses a FooterView
+			 * which messes the positions up. For me we'll just subtract one to
+			 * account for it and rely on the inner condition which checks
+			 * getBottom().
+			 */
+			if (lastVisiblePosition >= lastItemPosition - 1) {
+				final int childIndex = lastVisiblePosition - mRefreshableView.getFirstVisiblePosition();
+				final View lastVisibleChild = mRefreshableView.getChildAt(childIndex);
+				if (lastVisibleChild != null) {
+					return lastVisibleChild.getBottom() <= mRefreshableView.getBottom();
+				}
 			}
 		}
 
@@ -374,12 +416,12 @@ public abstract class PullToRefreshAdapterViewBase<T extends AbsListView> extend
 
 	private void removeIndicatorViews() {
 		if (null != mIndicatorIvTop) {
-			mRefreshableViewHolder.removeView(mIndicatorIvTop);
+			getRefreshableViewWrapper().removeView(mIndicatorIvTop);
 			mIndicatorIvTop = null;
 		}
 
 		if (null != mIndicatorIvBottom) {
-			mRefreshableViewHolder.removeView(mIndicatorIvBottom);
+			getRefreshableViewWrapper().removeView(mIndicatorIvBottom);
 			mIndicatorIvBottom = null;
 		}
 	}
