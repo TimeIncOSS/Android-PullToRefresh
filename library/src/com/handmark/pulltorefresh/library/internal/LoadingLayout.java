@@ -113,7 +113,7 @@ public class LoadingLayout extends FrameLayout
             Drawable background = attrs.getDrawable( R.styleable.PullToRefresh_ptrHeaderBackground );
             if ( null != background )
             {
-                setBackgroundDrawable( background );
+                header.setBackgroundDrawable( background );
             }
         }
 
@@ -233,15 +233,12 @@ public class LoadingLayout extends FrameLayout
 
         if (mHeaderImage.getWidth() > 0)
         {
-            mRotationPivotX = mHeaderImage.getWidth()  / 2f;
-            mRotationPivotY = mHeaderImage.getHeight() / 2f;
+            mRotationPivotX =m_imageSize  / 2f;
+            mRotationPivotY = m_imageSize / 2f;
         }
 
 
-        float dx = (  m_imageSize - m_intrinsicWidth) / 2f;
-        float dy = ( m_imageSize - m_intrinsicHeight ) / 2f;
 
-        mHeaderImageMatrix.setTranslate( dx, dy );
     }
 
     public void setSubTextColor( int color )
@@ -274,8 +271,11 @@ public class LoadingLayout extends FrameLayout
             degrees = 0f;
         }
         //Log.d( "LoadingLayout.onPullY", "degrees = " + degrees );
+        float dx = (  m_imageSize - m_intrinsicWidth) / 2f;
+        float dy = ( m_imageSize - m_intrinsicHeight ) / 2f;
 
-        mHeaderImageMatrix.setRotate( degrees, mRotationPivotX, mRotationPivotY );
+        mHeaderImageMatrix.setTranslate( dx, dy );
+        mHeaderImageMatrix.postRotate( degrees, mRotationPivotX, mRotationPivotY );
         mHeaderImage.setImageMatrix( mHeaderImageMatrix );
     }
 
