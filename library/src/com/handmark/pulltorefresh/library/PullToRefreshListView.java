@@ -17,6 +17,7 @@ package com.handmark.pulltorefresh.library;
 
 import android.annotation.TargetApi;
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.os.Build.VERSION;
@@ -90,6 +91,38 @@ public class PullToRefreshListView extends PullToRefreshAdapterViewBase<ListView
 			mFooterLoadingView.setReleaseLabel(releaseLabel);
 		}
 	}
+
+    public void setTextColor( final int color, Mode mode )
+    {
+        if (null != mHeaderLoadingView && mode.canPullDown()) {
+            mHeaderLoadingView.setTextColor(color);
+        }
+        if (null != mFooterLoadingView && mode.canPullUp()) {
+            mFooterLoadingView.setTextColor(color);
+        }
+
+    }
+
+    public void setTextColor( final ColorStateList color , Mode mode)
+    {
+        if (null != mHeaderLoadingView && mode.canPullDown()) {
+            mHeaderLoadingView.setTextColor(color);
+        }
+        if (null != mFooterLoadingView && mode.canPullUp()) {
+            mFooterLoadingView.setTextColor(color);
+        }
+    }
+
+    public void setLoadingViewBackgroundColor( final int color, Mode mode )
+    {
+        if (null != mHeaderLoadingView && mode.canPullDown()) {
+            mHeaderLoadingView.setBackgroundColor(color);
+        }
+        if (null != mFooterLoadingView && mode.canPullUp()) {
+            mFooterLoadingView.setBackgroundColor(color);
+        }
+
+    }
 
     protected ListView createListView(Context context, AttributeSet attrs) {
     	final ListView lv;
